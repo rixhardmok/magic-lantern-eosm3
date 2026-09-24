@@ -1,0 +1,41 @@
+name: Build ML LUT Module
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout User Code
+        uses: actions/checkout@v4
+        with:
+          path: user_repo
+
+      - name: Install ARM GCC & Build Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi make build-essential python3 curl mercurial git
+
+      - name: Fetch Magic Lantern Base Source
+        run: |
+          # 在云端服务器直接拉取魔灯统一镜像，省去本地上传的麻烦
+          git clone --depth 1 https://github.com/magiclantern/magic-lantern.git ml_base
+          # 将你写的模块注入到魔灯源码树对应位置
+          mkdir -p ml_base/modules/lut_loader
+          cp -r user_repo/modules/lut_loader/* ml_base/modules/lut_loader/
+
+      - name: Compile Module
+        run: |
+          cd ml_base/modules/lut_loader
+          make clean || true
+          make
+
+      - name: Upload .mo Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lut_loader_mo
+          path: ml_base/modules/lut_loader/lut_loader.mo
